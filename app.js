@@ -15,6 +15,8 @@ function init () {
   Homey.manager('flow').on('action.reboot_kodi', onFlowActionReboot)
   Homey.manager('flow').on('action.shutdown_kodi', onFlowActionShutdown)
   Homey.manager('flow').on('action.play_music_by_artist', onFlowActionPlayMusicByArtist)
+  Homey.manager('flow').on('action.play_music_from_playlist', onFlowActionPlayMusicFromPlaylist)
+  Homey.manager('flow').on('action.play_music_from_playlist.playlist.autocomplete', onFlowActionGetPlaylists)
   Homey.manager('flow').on('action.mute_kodi', onFlowActionMuteKodi)
   Homey.manager('flow').on('action.unmute_kodi', onFlowActionUnmuteKodi)
   Homey.manager('flow').on('action.subtitle_on', onFlowActionSubtitleOn)
@@ -298,56 +300,241 @@ function onFlowActionPlayMovieKodi (callback, args) {
   Homey.log('onFlowActionPlayMovieKodi', args)
   searchAndPlayMovie(args.kodi.id, args.movie_title)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionPauseResumeKodi (callback, args) {
   Homey.log('onFlowActionPauseResumeKodi()', args)
   Homey.manager('drivers').getDriver('kodi').playPause(args.kodi.id)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionStopKodi (callback, args) {
   Homey.log('onFlowActionStopKodi()', args)
   Homey.manager('drivers').getDriver('kodi').stop(args.kodi.id)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionPlayLatestEpisode (callback, args) {
   Homey.log('onFlowActionPlayLatestEpisode()', args)
   playLatestEpisode(args.kodi.id, args.series_title)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionHibernate (callback, args) {
   Homey.log('onFlowActionHibernate()', args)
   Homey.manager('drivers').getDriver('kodi').hibernateKodi(args.kodi.id)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionReboot (callback, args) {
   Homey.log('onFlowActionReboot()', args)
   Homey.manager('drivers').getDriver('kodi').rebootKodi(args.kodi.id)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionShutdown (callback, args) {
   Homey.log('onFlowActionShutdown()', args)
   Homey.manager('drivers').getDriver('kodi').shutdownKodi(args.kodi.id)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
 }
 
 function onFlowActionPlayMusicByArtist (callback, args) {
   Homey.log('onFlowActionPlayMusicByArtist()', args)
   searchAndPlayMusic(args.kodi.id, 'ARTIST', args.artist)
     .then(function () { callback(null, true) })
-    .catch(function (error) { callback(error) })
+    .catch(function (error) { callback(error, false) })
+}
+
+function onFlowActionPlayMusicFromPlaylist (callback, args) {
+  Homey.log('onFlowActionPlayMusicFromPlaylist()', args)
+  playPlaylist(args.kodi.id, (args.playlist.filename !== null ? args.playlist.filename : timeOfDay()))
+    .then(function () { callback(null, true) })
+    .catch(function (error) { callback(error, false) })
+}
+
+
+function timeOfDay() {
+	var d = new Date();
+	var section = '';
+	var folder = '/storage/.kodi/userdata/playlists/music/';
+	switch(d.getHours())
+	{
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+		case 10:
+		case 11:
+			section = 'Morgen';
+			break;
+		case 12:
+		case 13:
+		case 14:
+		case 15:
+		case 16:
+		case 17:
+			section = 'Middag';
+			break;
+		default:
+			section = 'Avond';
+			break;
+
+	}
+	switch(d.getDay())
+	{
+		case 0:
+			return folder + 'Auto/Zondag_' + section + '.xsp';
+		case 1:
+			return folder + 'Auto/Maandag_' + section + '.xsp';
+		case 2:
+			return folder + 'Auto/Dinsdag_' + section + '.xsp';
+		case 3:
+			return folder + 'Auto/Woensdag_' + section + '.xsp';
+		case 4:
+			return folder + 'Auto/Donderdag_' + section + '.xsp';
+		case 5:
+			return folder + 'Auto/Vrijdag_' + section + '.xsp';
+		case 6:
+			return folder + 'Auto/Zaterdag_' + section + '.xsp';
+		default:
+			return folder + 'WeekendAvond.xsp';
+	}
+}
+
+
+function onFlowActionGetPlaylists (callback, args) {
+	var myItems = [
+		{
+            image: 'https://home.mvtk.nl/xbmc/BestAudiophileVoices.jpg',
+            name: 'Best Audiophile Voices',
+            description: 'Beste retro hits',
+            filename: '/storage/.kodi/userdata/profiles/dts/playlists/music/Best Audiophile Voices.pls'
+        },
+		{
+            image: 'https://home.mvtk.nl/xbmc/WYDYouthFestival.jpg',
+            name: 'WYD Youth Festival',
+            description: 'Jongeren muziek van de WJD',
+            filename: '/storage/.kodi/userdata/playlists/music/WYD Youth Festival.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/SpringLounge.jpg',
+            name: 'Spring Lounge',
+            description: 'Relax muziek voor de lente',
+            filename: '/storage/.kodi/userdata/playlists/music/Spring Lounge.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/SummerLounge.jpg',
+            name: 'Summer Lounge',
+            description: 'Relax muziek voor de zomer',
+            filename: '/storage/.kodi/userdata/playlists/music/Summer Lounge.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/AutumnLounge.jpg',
+            name: 'Autumn Lounge',
+            description: 'Relax muziek voor de herfst',
+            filename: '/storage/.kodi/userdata/playlists/music/Autumn Lounge.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/WinterLounge.jpg',
+            name: 'Winter Lounge',
+            description: 'Relax muziek voor de winter',
+            filename: '/storage/.kodi/userdata/playlists/music/Winter Lounge.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/WeekAvond.jpg',
+            name: 'Avond muziek',
+            description: 'Voor door de week',
+            filename: '/storage/.kodi/userdata/playlists/music/WeekAvond.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/WeekendAvond.jpg',
+            name: 'Avond muziek',
+            description: 'Voor in het weekend',
+            filename: '/storage/.kodi/userdata/playlists/music/WeekendAvond.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/WeekendAvond.jpg',
+            name: 'Avond muziek',
+            description: 'Voor op de zaterdag',
+            filename: '/storage/.kodi/userdata/playlists/music/Zaterdag Avond.xsp'
+        },
+         {
+            image: 'https://home.mvtk.nl/xbmc/WeekendAvond.jpg',
+            name: 'Avond muziek',
+            description: 'Voor op de zondag',
+            filename: '/storage/.kodi/userdata/playlists/music/Zondag Avond.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Lezen.jpg',
+            name: 'Lezen',
+            description: 'Rustige muziek',
+            filename: '/storage/.kodi/userdata/playlists/music/Lezen.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Rustig.jpg',
+            name: 'Rustig',
+            description: 'Rustige relax muziek',
+            filename: '/storage/.kodi/userdata/playlists/music/Rustig.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/RelaxMeditatie.jpg',
+            name: 'Relax & Meditatie',
+            description: 'Relax muziek & muziek uit Taizé',
+            filename: '/storage/.kodi/userdata/playlists/music/RelaxMeditatie.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Meditatie.jpg',
+            name: 'Meditatie',
+            description: 'Rustige muziek uit Taizé',
+            filename: '/storage/.kodi/userdata/playlists/music/Meditatie.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Taize.jpg',
+            name: 'Taizé',
+            description: 'Muziek uit Taizé',
+            filename: '/storage/.kodi/userdata/playlists/music/Taize.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Instrumentaal.jpg',
+            name: 'Instrumentaal',
+            description: 'Instrumentale Taizé muziek',
+            filename: '/storage/.kodi/userdata/playlists/music/Instrumentaal.xsp'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Feestje.jpg',
+            name: 'Feestje',
+            description: 'Waar is dat feestje? Hier is dat feestje!',
+            filename: '/storage/.kodi/userdata/playlists/music/Feestje.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/Romantisch.jpg',
+            name: 'Romantisch',
+            description: 'Liefdesliedjes ik zou ze willen horen',
+            filename: '/storage/.kodi/userdata/playlists/music/Romantisch.m3u'
+        },
+        {
+            image: 'https://home.mvtk.nl/xbmc/time-of-day.jpg',
+            name: 'Tijd van de dag',
+            description: 'Muziek voor het huidige dagdeel',
+            filename: null
+        }
+    ];
+
+    myItems = myItems.filter(function(item){
+    	return ( item.name.toLowerCase().indexOf( args.query.toLowerCase() ) > -1 )
+    })
+
+
+
+    callback( null, myItems );
+
 }
 
 function onFlowActionMuteKodi (callback, args) {
@@ -442,6 +629,22 @@ function searchAndPlayMusic (device, queryProperty, searchQuery) {
       .then(
         function (songsToPlay) {
           KodiDriver.playMusic(device, songsToPlay, true)
+          resolve()
+        }
+      )
+      .catch(reject)
+  })
+}
+
+
+function playPlaylist (device, playlist) {
+  return new Promise(function (resolve, reject) {
+    Homey.log('playPlaylist()', device, playlist)
+    // Get the device from driver and search for music
+    var KodiDriver = Homey.manager('drivers').getDriver('kodi')
+    	KodiDriver.playMusicPlaylist(device, playlist)
+       .then(
+        function () {
           resolve()
         }
       )
