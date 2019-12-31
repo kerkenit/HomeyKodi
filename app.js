@@ -390,21 +390,21 @@ function timeOfDay() {
 	switch(d.getDay())
 	{
 		case 0:
-			return folder + 'Auto/Zondag_' + section + '.xsp';
+			return folder + 'Zondag_' + section + '.xsp';
 		case 1:
-			return folder + 'Auto/Maandag_' + section + '.xsp';
+			return folder + 'Maandag_' + section + '.xsp';
 		case 2:
-			return folder + 'Auto/Dinsdag_' + section + '.xsp';
+			return folder + 'Dinsdag_' + section + '.xsp';
 		case 3:
-			return folder + 'Auto/Woensdag_' + section + '.xsp';
+			return folder + 'Woensdag_' + section + '.xsp';
 		case 4:
-			return folder + 'Auto/Donderdag_' + section + '.xsp';
+			return folder + 'Donderdag_' + section + '.xsp';
 		case 5:
-			return folder + 'Auto/Vrijdag_' + section + '.xsp';
+			return folder + 'Vrijdag_' + section + '.xsp';
 		case 6:
-			return folder + 'Auto/Zaterdag_' + section + '.xsp';
+			return folder + 'Zaterdag_' + section + '.xsp';
 		default:
-			return folder + 'WeekendAvond.xsp';
+			return folder + 'Seizoen.xsp';
 	}
 }
 
