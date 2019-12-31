@@ -407,6 +407,45 @@ module.exports.playMusic = function (deviceSearchParameters, songsToPlay, shuffl
 }
 
 /* **********************************
+  PLAY MUSIC FROM PLAYLIST
+************************************/
+/*
+  - Opens playlist
+*/
+module.exports.playMusicPlaylist = function (deviceSearchParameters, filename) {
+  return new Promise(function (resolve, reject) {
+    console.log('playMusicPlaylist()', deviceSearchParameters, filename)
+
+    // search Kodi instance by deviceSearchParameters
+    getKodiInstance(deviceSearchParameters)
+      .then(function (kodi) {
+	     // Clear the playlist
+        var params = {
+          playlistid: 0
+        }
+        kodi.run('Playlist.Clear', params)
+          .then(function () {
+	        // Play the playlist
+	        var params = {
+	          item: {
+	            file: filename
+	          },
+              options: {
+                repeat: 'all'
+              }
+	        }
+ // Add the songs to the playlist
+             kodi.run('Player.Open', params)
+              .then(function (result) {
+                // Succesfully played the playlist, return the device for flow handling
+                resolve(kodi)
+              })
+          })
+      })
+  })
+}
+
+/* **********************************
   NEXT / PREVIOUS TRACK
 ************************************/
 module.exports.nextOrPreviousTrack = function (deviceSearchParameters, previousOrNext) {
@@ -698,7 +737,7 @@ module.exports.setPartyMode = function(deviceSearchParameters, onOff) {
       .then(function (kodi) {
         let params = {
           item: {
-            'partymode': 'music'          
+            'partymode': 'music'
           }
         }
 
@@ -946,7 +985,7 @@ function pollReconnect(device){
   }
   // Check if a timer has already been set for the device
   if(!device.reconnectTimer){
-    reconnect()  
+    reconnect()
   }
 }
 
@@ -1078,7 +1117,7 @@ function onKodiPlay (result, device) {
                 song_title: songResult.songdetails.title
               }, null, device.device_data)
             }).catch(function(err){console.log(err)})
-          
+
         }
       }
     })
