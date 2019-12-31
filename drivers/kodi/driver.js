@@ -9,7 +9,7 @@ var Utils = require('../../libs/utils')
 var registeredDevices = []
 
 // Globals
-var CONNECT_INTERVAL = 10000 //miliseconds
+var CONNECT_INTERVAL = 10000 // miliseconds
 
 // Init the logging
 console.log = function () {
@@ -64,7 +64,6 @@ module.exports.init = function (devices, callback) {
     })
   })
 
-
   callback()
 }
 
@@ -73,7 +72,7 @@ module.exports.pair = function (socket) {
   // Link the configure function to the front end
   socket.on('configure_kodi', function (device, callback) {
     // Check if the device has already been added
-    if(registeredDevices.some(function(item){return item.id === device.settings.host})) {
+    if (registeredDevices.some(function (item) { return item.id === device.settings.host })) {
       callback(__('pair.feedback.device_already_exists'))
     } else {
       // Try to connect and register device
@@ -728,7 +727,7 @@ module.exports.getNewestEpisodes = function (deviceSearchParameters, daysSince) 
 /* **********************************
   SET PARTY MODE
 ************************************/
-module.exports.setPartyMode = function(deviceSearchParameters, onOff) {
+module.exports.setPartyMode = function (deviceSearchParameters, onOff) {
   // Kodi API: System.Hibernate
   return new Promise(function (resolve, reject) {
     console.log('setPartyMode(' + onOff + ')', deviceSearchParameters)
@@ -744,7 +743,7 @@ module.exports.setPartyMode = function(deviceSearchParameters, onOff) {
         kodi.run('Player.Open', params)
           .then(function (result) {
             resolve(kodi)
-          }).catch(function(err){console.log(err)})
+          }).catch(function (err) { console.log(err) })
       })
       .catch(reject)
   })
@@ -845,8 +844,8 @@ module.exports.setSubtitle = function (deviceSearchParameters, subsitleOnOff) {
             if (result[0]) { // Check whether there is an active player to set the subtitle
               // Build request parameters and supply the player
               let params = {
-                 playerid: result[0].playerid
-                ,subtitle: subsitleOnOff
+                playerid: result[0].playerid,
+                subtitle: subsitleOnOff
               }
               kodi.run('Player.SetSubtitle', params)
               .then(function (result) {
@@ -888,7 +887,7 @@ function deleteDevice (deviceId) {
 
 function unregisterDevice (deviceId) {
   // Lookup the device
-  let device = registeredDevices.filter(function(item){
+  let device = registeredDevices.filter(function (item) {
     return item.id === deviceId
   })[0]
   // Delete the reconnect timer
@@ -950,9 +949,6 @@ function startListeningForEvents (device) {
   // Keep track of connection loss
   device.on('close', function () {
     console.log('Connection closed')
-    // Save connection details to reconnect
-    let host = device.id
-    let tcpport = device.tcpport
     // Delete the device details from Homey
     deleteDevice(device.id)
     // Initiate auto reconnect process
@@ -961,7 +957,7 @@ function startListeningForEvents (device) {
 }
 
 // Try to reconnect every 10sec
-function pollReconnect(device){
+function pollReconnect (device) {
   function reconnect () {
     console.log('Trying to reconnect')
     KodiWs(device.id, device.tcpport)
@@ -984,7 +980,8 @@ function pollReconnect(device){
       })
   }
   // Check if a timer has already been set for the device
-  if(!device.reconnectTimer){
+
+  if (!device.reconnectTimer) {
     reconnect()
   }
 }
@@ -1046,67 +1043,88 @@ function onKodiPlay (result, device) {
   // Throw a 'anything started playing' event
   console.log('Triggering flow kodi_playing_something')
   Homey.manager('flow').triggerDevice('kodi_playing_something', null, null, device.device_data)
+  const playerId = (result.data.player.playerid === -1) ? 1 : result.data.player.playerid
+  // Grab the current playing item from the
   // Check if there's a new song/movie/episode playback or a resume action (player % > 1)
   // Build request parameters and supply the player
   var params = {
-    playerid: result.data.player.playerid === -1 ? 1 : result.data.player.playerid, // Convert -1 to 1 if player is an Addon (Exodus / Specto)
+    playerid: playerId, // Convert -1 to 1 if player is an Addon (Exodus / Specto)
     properties: ['percentage']
   }
   device.run('Player.GetProperties', params)
     .then(function (playerResult) {
       // If the percentage is above 0.1 for eps/movies or above 1  for songs , we have a resume-action
       if (playerResult) {
-        if ((playerResult.percentage >= 0.1 && result.data.item.type != 'song') || (playerResult.percentage >= 1 && result.data.item.type === 'song')) {
+        if ((playerResult.percentage >= 0.1 && result.data.item.type !== 'song') || (playerResult.percentage >= 1 && result.data.item.type === 'song')) {
           console.log('Triggering flow kodi_resume')
           Homey.manager('flow').triggerDevice('kodi_resume', null, null, device.device_data)
-        // Check the playback type (movie or episode)
-        } else if (result.data.item.type === 'movie' || result.data.item.type === 'movies') {
-          // Check if we get a title from Kodi
-          if (result.data.item.title) {
-            console.log('Triggering flow kodi_movie_start for device', device.id)
-            Homey.manager('flow').triggerDevice('kodi_movie_start', {
-              // Pass movie title as flow token
-              movie_title: result.data.item.title
-            }, null, device.device_data)
           } else {
-            var movieParams = {
-              movieid: result.data.item.id,
+          // Get the current item from the Player to check whether we are dealing with a movie or an episode
+          device.run('Player.GetItem', { playerid: playerId }).then(function (resultGetItem) {
+            // Check if we're dealing with a movie, episode or song
+            if (resultGetItem.item.type === 'movie' || resultGetItem.item.type === 'movies') {
+              let movieTitle = (resultGetItem.item.label) ? resultGetItem.item.label : ''
+              const movieParams = {
+                movieid: (resultGetItem.item.id) ? resultGetItem.item.id : -1,
               properties: ['title']
             }
             // Else get the title by id
             device.run('VideoLibrary.GetMovieDetails', movieParams)
               .then(function (movieResult) {
+                  console.log('movieresult', movieResult)
+                  movieTitle = (movieResult.moviedetails.label) ? movieResult.moviedetails.label : movieTitle
+                })
+                .catch((err) => {
+                  console.log(err)
+                })
+                .then(function () {
+                  console.log('MT', movieTitle)
+                  if (movieTitle !== '') {
                 // Trigger appropriate flows
-                Homey.log('Triggering flow kodi_movie_start, movie_title: ', movieResult.moviedetails.label, 'device: ', device.device_data)
+                    Homey.log('Triggering flow kodi_movie_start, movie_title: ', movieTitle, 'device: ', device.device_data)
                 // Trigger flows and pass variables
                 Homey.manager('flow').triggerDevice('kodi_movie_start', {
                   // Pass movie title as flow token
-                  movie_title: movieResult.moviedetails.label
+                      movie_title: movieTitle
                 }, null, device.device_data)
+                  }
               })
-          }
-        } else if (result.data.item.type === 'episode' || result.data.item.type === 'episodes') {
+            } else if (resultGetItem.item.type === 'episode' || resultGetItem.item.type === 'episodes') {
+              // Placeholder variables for episode details
+              let tvshowTitle = (result.data.item.showtitle) ? result.data.item.showtitle : ''
+              let episodeTitle = (result.data.item.title) ? result.data.item.showtitle : ''
+              let season = (result.data.item.season) ? result.data.item.season : ''
+              let episode = (result.data.item.episode) ? result.data.item.episode : ''
           // Get Episode details
-          let episodeParams = {
-            episodeid: result.data.item.id,
+              const episodeParams = {
+                episodeid: (resultGetItem.item.id) ? resultGetItem.item.id : -1,
             properties: ['showtitle', 'season', 'episode', 'title']
           }
           device.run('VideoLibrary.GetEpisodeDetails', episodeParams)
             .then(function (episodeResult) {
+                  tvshowTitle = (episodeResult.episodedetails.showtitle) ? episodeResult.episodedetails.showtitle : tvshowTitle
+                  episodeTitle = (episodeResult.episodedetails.label) ? episodeResult.episodedetails.label : episodeTitle
+                  season = (episodeResult.episodedetails.season) ? episodeResult.episodedetails.season : season
+                  episode = (episodeResult.episodedetails.episode) ? episodeResult.episodedetails.episode : episode
+                })
+                .catch((err) => { console.log(err) })
+                .then(function () {
+                  if (tvshowTitle !== '' && episodeTitle !== '') {
               // Trigger action kodi_episode_start
-              Homey.log('Triggering flow kodi_episode_start, tvshow_title: ', episodeResult.episodedetails.showtitle, 'episode_title: ', episodeResult.episodedetails.label, 'season: ', episodeResult.episodedetails.season, 'episode: ', episodeResult.episodedetails.episode)
+                    Homey.log('Triggering flow kodi_episode_start, tvshow_title: ', tvshowTitle, 'episode_title: ', episodeTitle, 'season: ', season, 'episode: ', episode)
               Homey.manager('flow').triggerDevice('kodi_episode_start', {
-                tvshow_title: episodeResult.episodedetails.showtitle,
-                episode_title: episodeResult.episodedetails.label,
-                season: episodeResult.episodedetails.season,
-                episode: episodeResult.episodedetails.episode
+                      tvshow_title: tvshowTitle,
+                      episode_title: episodeTitle,
+                      season: season,
+                      episode: episode
               }, null, device.device_data)
+                  }
             })
-        } else if (result.data.item.type === 'song' || result.data.item.type === 'songs') {
+            } else if (resultGetItem.item.type === 'song' || resultGetItem.item.type === 'songs') {
           // Get song details
           let songParams = {
             songid: result.data.item.id,
-            properties: ['artist','title']
+                properties: ['artist', 'title']
           }
           device.run('AudioLibrary.GetSongDetails', songParams)
             .then(function (songResult) {
@@ -1116,9 +1134,10 @@ function onKodiPlay (result, device) {
                 artist: songResult.songdetails.artist[0],
                 song_title: songResult.songdetails.title
               }, null, device.device_data)
-            }).catch(function(err){console.log(err)})
-
+                }).catch(function (err) { console.log(err) })
+            }
+          })
         }
-      }
+       }
     })
 }
